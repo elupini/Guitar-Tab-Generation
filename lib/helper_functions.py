@@ -122,3 +122,57 @@ def tablaturize_jams_v2(jam, df, save_path=None):
     if save_path:
         plt.savefig(save_path)
         
+def get_shortest_distance(df):
+    
+    predictions = []
+    
+    # Get initial prediction
+    predictions.append((baseline_helper(df['midi_note'][0])))
+    
+    for i in range(1,len(df)):
+        fret = int(df.iloc[i]['midi_note'])
+        
+        possible_voicings = calculate_possible_frets(fret)
+        
+        distances = []
+        
+        for v in possible_voicings:
+            distances.append(cdist([[v[0],v[1]]], [[predictions[i-1][0],predictions[i-1][1]]], metric='cityblock'))
+        if(len(distances)==0):
+            print('possible voicings: ',possible_voicings)
+            print('predictions: ',predictions)
+            print('midi: ', fret)
+            print('df row: ',df.iloc[i])
+        correct_voicing = possible_voicings[np.asarray(distances).argmin()]
+        
+        predictions.append(correct_voicing)
+    
+    strings = []
+    frets = []
+    
+    for p in predictions:
+        strings.append(p[0])
+        frets.append(p[1])
+    strings = {'string_pred':strings}
+    frets = {'fret_pred':frets}
+
+    df['string_pred'] = strings['string_pred']
+    df['fret_pred'] = frets['fret_pred']
+    
+    return df
+
+def calculate_possible_frets(midi_note):
+    
+    str_midi_dict = {0: 40, 1: 45, 2: 50, 3: 55, 4: 59, 5: 64}
+    possible_voicings = []
+    
+    if(midi_note<40):
+        possible_voicings.append((0,0))
+
+    for key,_ in str_midi_dict.items():
+
+        if((midi_note - str_midi_dict[key]) >=0):
+
+            possible_voicings.append((key,int(round(midi_note - str_midi_dict[key]))))
+            
+    return possible_voicings
